@@ -1,19 +1,52 @@
-import boto3
+"""
+Create a Python application that:
+- Extracts the data from an api or csv
+- Stores the data in MongoDB
+- Serializes data into JSON
+- Uploads exported data to an S3 bucket as json files
+"""
+import requests
+import pymongo
 
-s3_client = boto3.client('s3')
-s3_resource = boto3.resource('s3')
+def get_all_pokemon(limit=10):
+    try:
+        response = requests.get(f'https://pokeapi.co/api/v2/pokemon?limit={limit}')
+        return response.json()['results']
+    
+    except Exception as e: 
+        print(f'Error {e}')
+        return 
 
-bucket_name = "se-data-with-ai-etl-project"
 
-with open("test.txt", "w") as file:
-    file.write("Testing boto3")
+def get_pokemon_details():
+    all_pokemon = get_all_pokemon()
+    for pokemon in all_pokemon:
+        try:
+            response = requests.get(pokemon['url'])
 
-file_name = "test.txt"
+            pokemon['details'] = response.json()
+    
+        except Exception as e: 
+            print(f'Error {e}')
 
-s3_client.upload_file(
-    Filename = file_name,
-    Bucket = bucket_name,
-    Key = "AMI-Amigos/" + file_name
-)
 
-print("Upload Successful")
+
+#mongo connect
+
+class mongo:
+    def __init__(self):
+        client = pymongo.MongoClient("mongodb://localhost:27017/")
+        db = client["pokemon_db"]
+        self.pokemon = db["pokemon"]
+
+    def upload_data(self, data):
+        self.pokemon.insert_many(data)
+
+    def reset(self):
+        self.pokemon.delete_many({})
+
+
+if __name__=='__main__':
+    data=get_all_pokemon()
+    db = mongo() 
+    db.upload_data(data)
