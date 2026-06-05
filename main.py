@@ -9,7 +9,8 @@ import requests
 import pymongo
 from bson.json_util import dumps
 import boto3
-from pprint import pprint
+from sshtunnel import SSHTunnelForwarder
+import os 
 
 def get_all_pokemon(limit=1500):
     try:
@@ -65,8 +66,19 @@ class S3:
 
 
 class Mongo:
-    def __init__(self):
-        client = pymongo.MongoClient("mongodb://localhost:27017/")
+
+    def __init__(self, EC2_ip='34.245.56.84'):
+
+        self.tunnel = SSHTunnelForwarder(
+            (EC2_ip, 22),
+            ssh_username="ubuntu",
+            ssh_pkey=os.path.expanduser('~/.ssh/se-louis-key-pair.pem'), 
+            remote_bind_address=('127.0.0.1', 27017)
+        )
+        self.tunnel.start()
+        client = pymongo.MongoClient(
+            f"mongodb://127.0.0.1:{self.tunnel.local_bind_port}/"
+        )
         db = client["pokemon_db"]
         self.pokemon = db["pokemon"]
 
@@ -106,5 +118,4 @@ if __name__=='__main__':
 
     s3 = S3()
     s3.upload_data(json_data, 'pokemon.txt')
-
 

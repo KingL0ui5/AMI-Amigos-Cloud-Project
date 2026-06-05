@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "boto3>=1.43.23",
+    "cryptography<43.0.0",
+    "paramiko<3.4.0",
     "pymongo>=4.17.0",
     "requests>=2.34.2",
+    "sshtunnel>=0.4.0",
 ]
