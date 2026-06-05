@@ -7,9 +7,11 @@ Create a Python application that:
 """
 import requests
 import pymongo
+from bson.json_util import dumps
 import boto3
+from pprint import pprint
 
-def get_all_pokemon(limit=1):
+def get_all_pokemon(limit=1500):
     try:
         response = requests.get(f'https://pokeapi.co/api/v2/pokemon?limit={limit}')
         return response.json()['results']
@@ -17,7 +19,6 @@ def get_all_pokemon(limit=1):
     except Exception as e: 
         print(f'Error {e}')
         return 
-
 
 def get_pokemon_details():
     all_pokemon = get_all_pokemon()
@@ -56,6 +57,7 @@ class S3:
                 Key = "AMI-Amigos/" + file_name
             )
             return True
+    
         
         except Exception as e: 
             print(f'Error: {e}')
@@ -69,15 +71,15 @@ class Mongo:
         self.pokemon = db["pokemon"]
 
     def read_data(self, filter): 
-        data = self.pokemon.find(filter)
+        data = list(self.pokemon.find(filter))
         return data 
     
-    def upload_data(self, data):
+    def create_data(self, data):
         self.pokemon.insert_many(data)
         return True
 
-    def update_data(self, data, filter): 
-        self.pokemon.update_many(data, filter)
+    def update_data(self, filter, new_values): 
+        self.pokemon.update_many(filter, {"$set": new_values})
         return True 
 
     def delete_data(self, filter):
@@ -87,10 +89,22 @@ class Mongo:
     def reset(self):
         self.pokemon.delete_many({})
         return True
+    
+    def bson_convert(self):
+        mongo_data = self.read_data(filter={})
+        json_data = dumps(mongo_data)
+        # pprint(json_data)
+        return json_data
 
 
 if __name__=='__main__':
-    data=get_pokemon_details()
+    data=get_all_pokemon()
     db = Mongo() 
     db.reset()
-    db.upload_data(data)
+    db.create_data(data)
+    json_data = db.bson_convert()
+
+    s3 = S3()
+    s3.upload_data(json_data, 'pokemon.txt')
+
+
