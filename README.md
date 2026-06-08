@@ -12,14 +12,50 @@ PokeAPI --> Python --> MongoDB (EC2) --> JSON Export --> AWS S3
 
 - Python 3.13+
 - [uv](https://github.com/astral-sh/uv)
-- AWS credentials configured (see below)
-- SSH key for EC2 instance (see below)
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+- An EC2 instance running MongoDB (see EC2 Setup below)
+- An EC2 key pair `.pem` file
+
+## Install uv
+
+```bash
+pip install uv
+```
+
+## Install dependencies
+
+```bash
+uv sync
+```
+
+This installs:
+
+| Package | Purpose |
+|---|---|
+| `boto3` | AWS SDK for uploading to S3 |
+| `pymongo` | MongoDB driver |
+| `requests` | Fetching data from PokeAPI |
+| `sshtunnel` | SSH tunnel to reach MongoDB on EC2 |
+| `paramiko` | SSH backend used by sshtunnel |
+| `cryptography` | Cryptographic support for paramiko |
+| `python-dotenv` | Loads environment variables from `.env` |
+
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```
+EC2_IP=your-ec2-public-ip
+SSH_KEY_PATH=~/.ssh/your-key-pair.pem
+```
 
 ## AWS Setup
 
-### Credentials
+### Install the AWS CLI
 
-Configure your AWS credentials using the CLI:
+Download and install from: https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html
+
+### Configure credentials
 
 ```bash
 aws configure
@@ -58,20 +94,29 @@ except ClientError as e:
     print("Credentials rejected by AWS:", e.response['Error']['Message'])
 ```
 
-### SSH Key
+## EC2 Setup
 
-Place your EC2 key pair `.pem` file at `~/.ssh/your-key-pair.pem` and update the path in `.env`:
-
-```
-EC2_IP=your-ec2-public-ip
-```
-
-The key path in `main.py` defaults to `~/.ssh/se-louis-key-pair.pem` — update this to match your own key file name.
-
-## Install dependencies
+1. Launch an EC2 instance (Ubuntu 24.04, t3.micro) in the AWS console
+2. Create a key pair and download the `.pem` file to `~/.ssh/`
+3. In the security group, open the following ports:
+   - Port 22 (SSH) — required for the SSH tunnel
+   - Port 27017 (MongoDB) — optional, only if connecting directly
+4. SSH into the instance:
 
 ```bash
-uv sync
+ssh -i ~/.ssh/your-key-pair.pem ubuntu@your-ec2-public-ip
+```
+
+5. Install MongoDB by running the following on the instance:
+
+```bash
+sudo apt update -y && sudo apt upgrade -y
+curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+sudo apt update -y
+sudo apt install -y mongodb-org
+sudo systemctl start mongod
+sudo systemctl enable mongod
 ```
 
 ## Run the pipeline
@@ -85,6 +130,28 @@ This will:
 2. Store them in MongoDB on the EC2 instance
 3. Export the data as JSON
 4. Upload it to the S3 bucket under `AMI-Amigos/pokemon.json`
+
+## CRUD Operations
+
+The `Mongo` class in `main.py` exposes the following operations against the `pokemon` collection:
+
+| Method | Operation | Description |
+|---|---|---|
+| `create_data(data)` | Create | Inserts a list of documents |
+| `read_data(filter)` | Read | Returns documents matching the filter |
+| `update_data(filter, new_values)` | Update | Updates all documents matching the filter |
+| `delete_data(filter)` | Delete | Deletes all documents matching the filter |
+| `reset()` | Delete | Clears the entire collection |
+
+Example usage:
+
+```python
+db = Mongo()
+db.create_data([{"name": "bulbasaur", "url": "https://pokeapi.co/api/v2/pokemon/1/"}])
+db.read_data({"name": "bulbasaur"})
+db.update_data({"name": "bulbasaur"}, {"url": "https://updated.com"})
+db.delete_data({"name": "bulbasaur"})
+```
 
 ## Run CRUD tests (local MongoDB)
 

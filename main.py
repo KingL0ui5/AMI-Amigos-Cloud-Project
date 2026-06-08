@@ -76,7 +76,7 @@ class Mongo:
         self.tunnel = SSHTunnelForwarder(
             (EC2_ip, 22),
             ssh_username="ubuntu",
-            ssh_pkey=os.path.expanduser('~/.ssh/se-louis-key-pair.pem'), 
+            ssh_pkey=os.path.expanduser(os.getenv('SSH_KEY_PATH')),
             remote_bind_address=('127.0.0.1', 27017)
         )
         self.tunnel.start()
