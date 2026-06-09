@@ -205,6 +205,24 @@ uv run test_s3_update.py
 uv run test_s3_delete.py
 ```
 
+**Create** — uploads `test.json` (70B) to `AMI-Amigos/sasan-test/` in S3:
+
+![S3 create terminal](images/create_s3_terminal.png)
+![S3 create console](images/create_s3.png)
+
+**Read** — fetches and prints the uploaded JSON content:
+
+![S3 read terminal](images/read_s3_terminal.png)
+
+**Update** — overwrites `test.json` with new content (bulbasaur → squirtle) and reads it back to confirm:
+
+![S3 update terminal](images/update_s3_terminal.png)
+
+**Delete** — removes `test.json`; S3 console confirms the folder is empty:
+
+![S3 delete terminal](images/delete_s3_terminal.png)
+![S3 delete console](images/delete_s3.png)
+
 ## S3 Bucket
 
 Data is uploaded to: `se-data-with-ai-etl-project/AMI-Amigos/`
